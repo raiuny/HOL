@@ -28,7 +28,7 @@ def get_result_sim():
     for lam1 in np.arange(0.0002, 0.0034, 0.0002):
         lam21 = 0.0010
         lam22 = 0.0020
-        file = f"log-unsym-w16-{lam1:.4f}-{lam21:.4f}-{lam22:4f}-{nmld}-{nsld1}-{nsld2}-{beta:.3f}-{tt}-{tf}.csv"
+        file = f"log-unsym-w128-{lam1:.4f}-{lam21:.4f}-{lam22:4f}-{nmld}-{nsld1}-{nsld2}-{beta:.3f}-{tt}-{tf}.csv"
         data = pd.read_csv(path+file).drop(columns=["Unnamed: 0"])
         tmp = data.mean().T
         df = pd.concat([df, tmp], axis=1)
@@ -40,8 +40,8 @@ def get_result_sim():
 if __name__ == "__main__":
     n1 = 10
     n2 = 10
-    tau_T = 32+1
-    tau_F = 27+1
+    tau_T = 32
+    tau_F = 27
     lam_range = np.arange(0.0002, 0.0034, 0.0002)
     thpt1_res = []
     thpt2_res = []
@@ -63,7 +63,7 @@ if __name__ == "__main__":
             n2 = 10,
             lambda1 = tau_T * lam1/2,
             lambda2 = tau_T * 0.0010,
-            W_1 = 16,
+            W_1 = 128,
             W_2 = 16,
             K_1 = 6,
             K_2 = 6,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
             n2 = 10,
             lambda1 = tau_T * lam1/2,
             lambda2 = tau_T * 0.0020,
-            W_1 = 16,
+            W_1 = 128,
             W_2 = 16,
             K_1 = 6,
             K_2 = 6,
@@ -145,8 +145,8 @@ if __name__ == "__main__":
     plt.legend()
     plt.grid()
     plt.figure(6)
-    plt.plot(lam_range[:-3], sim['Queueing Delay of MLD on Link 2'][:-3] * 9 * 1e-3, label="sim")
-    plt.plot(lam_range[:-3], q_delay_res2[:-3], label = "model", linestyle="--")
+    plt.plot(lam_range[:4], sim['Queueing Delay of MLD on Link 2'][:4] * 9 * 1e-3, label="sim")
+    plt.plot(lam_range[:4], q_delay_res2[:4], label = "model", linestyle="--")
     print("q delay2", q_delay_res2)
     plt.ylabel("Queueing Delay of MLD on Link 2(ms)")
     plt.xlabel("arrival rate of mld")

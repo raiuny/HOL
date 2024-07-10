@@ -142,16 +142,16 @@ class HOL_Model:
         # return calc_alpha_base(self.tt, self.tf, self.p1), calc_alpha_sym(self.tt, self.tf, self.n1 + self.n2, self.p1)
 
 if __name__ == "__main__":
-    lambda_per_slot = 0.0005
+    lambda_per_slot = 0.005
     tau_T = 32
     tau_F = 27
     print("lambda_tt: ", tau_T * lambda_per_slot)
     model = HOL_Model(
-        n1 = 10,
-        n2 = 10,
+        n1 = 40,
+        n2 = 0,
         lambda1 = tau_T * lambda_per_slot,
-        lambda2 = tau_T * 0.002,
-        W_1 = 128,
+        lambda2 = tau_T * lambda_per_slot,
+        W_1 = 16,
         W_2 = 16,
         K_1 = 6,
         K_2 = 6,

@@ -61,6 +61,8 @@ def calc_uu_p_fsovle(n1: int, lambda1: float, n2: int, lambda2: float, tt: float
         Tuple[float, float, bool]: pL, pS, is_correct
     """
     r = tf / tt
+    if (1 - (1 - r) * (n1 * lambda1 + n2 * lambda2)) == 0:
+        return 0, 0, False
     z = r / (1 - (1 - r) * (n1 * lambda1 + n2 * lambda2))
     A = (1 + 1 / tf) * z
     def x_equation(x):
@@ -144,12 +146,12 @@ def calc_PA1(nMLD, nSLD, W_mld, K_mld, W_sld, K_sld):
     pa = root_scalar(pf, args=(nMLD, nSLD, W_mld, K_mld, W_sld, K_sld), bracket=[0.00001, 0.99999], method='brentq').root
     return pa, pf(pa, nMLD, nSLD, W_mld, K_mld, W_sld, K_sld)
 
-def calc_PA2(nMLD, nSLD, W_mld, K_mld, W_sld, K_sld):
-    def pf(p, nMLD, nSLD, W_mld, K_mld, W_sld, K_sld):
-        return p - np.exp(- 2 * nMLD * (2 * p - 1) / (2 * p - 1 + W_mld * (p - 2 ** K_mld * (1 - p) ** (K_mld + 1))) \
-                          - 2 * nSLD * (2 * p - 1) / (2 * p - 1 + W_sld * (p - 2 ** K_sld * (1 - p) ** (K_sld + 1))))
-    pa = root_scalar(pf, args=(nMLD, nSLD, W_mld, K_mld, W_sld, K_sld), bracket=[0.00001, 0.99999], method='brentq').root
-    return pa, pf(pa, nMLD, nSLD, W_mld, K_mld, W_sld, K_sld)
+# def calc_PA2(nMLD, nSLD, W_mld, K_mld, W_sld, K_sld):
+#     def pf(p, nMLD, nSLD, W_mld, K_mld, W_sld, K_sld):
+#         return p - np.exp(- 2 * nMLD * (2 * p - 1) / (2 * p - 1 + W_mld * (p - 2 ** K_mld * (1 - p) ** (K_mld + 1))) \
+#                           - 2 * nSLD * (2 * p - 1) / (2 * p - 1 + W_sld * (p - 2 ** K_sld * (1 - p) ** (K_sld + 1))))
+#     pa = root_scalar(pf, args=(nMLD, nSLD, W_mld, K_mld, W_sld, K_sld), bracket=[0.00001, 0.99999], method='brentq').root
+#     return pa, pf(pa, nMLD, nSLD, W_mld, K_mld, W_sld, K_sld)
 
 def calc_ss_p_fsolve(nmld: int, nsld: int, W_mld: int, K_mld: int, W_sld: int, K_sld: int)-> Tuple[float, bool]:
     """ calculate p in S-S scenario, return p of each link and throughput on each link (both saturated)
@@ -164,7 +166,7 @@ def calc_ss_p_fsolve(nmld: int, nsld: int, W_mld: int, K_mld: int, W_sld: int, K
         p, is_correct
     """
     ss = True
-    pa1, err1 = calc_PA1(nmld, nsld, W_mld, K_mld, W_sld, K_sld)
+    pa1, err1 = calc_PA1(nmld-1, nsld, W_mld, K_mld, W_sld, K_sld)
     pa2, err2 = calc_PA1(nmld, nsld-1, W_mld, K_mld, W_sld, K_sld)
     if np.abs(err1) > 1e-5:
         ss = False
@@ -261,7 +263,6 @@ def calc_access_delay_s(p: float, tt: float, tf: float, W: int, K: int, ilambda:
     """
     alpha = 1 / (1 + tf - tf * p - (tt - tf) * p * np.log(p))
     alpha = alpha / (1 - mu_S * (1 + tf / tt * (1 - p) / p))
-    # alpha = 0.086
     ED0_1 = tt + (1 - p) / p * tf + 1 / alpha * (1 / (2 * p) + \
                                                  W / 2 * (1 / (2 * p - 1) - 2 ** K * (1 - p) ** (K + 1) / (p * (2 * p - 1))))
     G1Y = [1 / (2 * alpha) * (W * 2 ** i + 1) for i in range(K+1)]
