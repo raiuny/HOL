@@ -41,6 +41,7 @@ def calc_conf(p1, p2, lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, alpha, state
     if mu1 < 0 or mu2 < 0:
         return 0
     state_signs = [(1,1), (1,-1), (-1,1), (-1,-1)]
+
     return 1 - 0.5 * ( relu(state_signs[state_idx][0] * (lambda1 - mu1) ) + relu(state_signs[state_idx][1] * (lambda2 - mu2) ) )
 
 # p
@@ -58,7 +59,7 @@ def calc_au_p_fsolve(n1: int, n2: int, lambda1: float, lambda2: float, tt: float
     p_au = fsolve(pf, [0.9, 0.9], args = (n1, n2, lambda1, lambda2))
     err = np.sqrt(np.sum(np.array(pf(p_au, n1, n2, lambda1, lambda2))**2))
     uu = True
-    if err > 1e-5:
+    if err > 1e-5 or p_au[0] > 1 or p_au[1] > 1:
         uu = False
     return p_au, uu
 
@@ -103,11 +104,11 @@ def calc_ps_p_formula(n1: int, lambda1: float, n2: int, lambda2: float, W_1: int
         p_ps
     """
     # US:
-    p_us2 = _calc_ps_p_formula(n2-1, W_2, K_2, n1, lambda1, tt, tf)
-    p_us1 = _calc_ps_p_formula(n2, W_2, K_2, n1-1, lambda1, tt, tf)
+    p_us2 = _calc_ps_p_formula(n2, W_2, K_2, n1, lambda1, tt, tf)
+    p_us1 = _calc_ps_p_formula(n2, W_2, K_2, n1, lambda1, tt, tf)
     # SU:
-    p_su1 = _calc_ps_p_formula(n1-1, W_1, K_1, n2, lambda2, tt, tf)
-    p_su2 = _calc_ps_p_formula(n1, W_1, K_1, n2-1, lambda2, tt, tf)
+    p_su1 = _calc_ps_p_formula(n1, W_1, K_1, n2, lambda2, tt, tf)
+    p_su2 = _calc_ps_p_formula(n1, W_1, K_1, n2, lambda2, tt, tf)
     return  p_us1, p_us2, p_su1, p_su2
 
 def calc_ps_p_fsolve_discard(n1: int, lambda1: float, n2: int, lambda2: float, W_1: int, K_1: int, W_2: int, K_2: int,  tt: float, tf: float):
@@ -167,8 +168,8 @@ def calc_ss_p_fsolve_pa(nmld: int, nsld: int, W_mld: int, K_mld: int, W_sld: int
         p, is_correct
     """
     ss = True
-    pa1, err1 = calc_PA1(nmld-1, nsld, W_mld, K_mld, W_sld, K_sld)
-    pa2, err2 = calc_PA1(nmld, nsld-1, W_mld, K_mld, W_sld, K_sld)
+    pa1, err1 = calc_PA2(nmld, nsld, W_mld, K_mld, W_sld, K_sld)
+    pa2, err2 = calc_PA2(nmld, nsld-1, W_mld, K_mld, W_sld, K_sld)
     if np.abs(err1) > 1e-5 or np.abs(err2) > 1e-5:
         ss = False
         return -1, -1, False
@@ -241,6 +242,8 @@ def calc_access_delay_u(p: float, alpha: float, tt: float, tf: float, W: int, K:
     Returns:
         Tuple[float, float]: queuing delay, access delay
     """
+    tt = tt + 1
+    tf = tf + 1
     alpha = alpha / (1 - ilambda * (1 + tf / tt * (1 - p) / p))
     ED0_1 = tt + (1 - p) / p * tf + 1 / alpha * (1 / (2 * p) + \
                                                  W / 2 * (1 / (2 * p - 1) - 2 ** K * (1 - p) ** (K + 1) / (p * (2 * p - 1))))
@@ -267,7 +270,7 @@ def calc_access_delay_u(p: float, alpha: float, tt: float, tf: float, W: int, K:
     # ED01_L = tt + (1 + W) / 2
     # print(ED0_1, ED01_L)
     total_delay = queuing_delay + access_delay
-    return queuing_delay, access_delay
+    return queuing_delay, access_delay, ED0_2
 
 def calc_access_delay_s(p: float, alpha:float, tt: float, tf: float, W: int, K: int, ilambda: float, mu_S: float = 0):
     """calculate queuing delay, access delay
@@ -300,7 +303,7 @@ def calc_access_delay_s(p: float, alpha:float, tt: float, tf: float, W: int, K: 
     queueing_delay = mu_S / tt * (ED0_2 - ED0_1) / (2 * (1 - mu_S / tt * ED0_1)+1e-12)
     access_delay = ED0_1
     # print("queueing delay", queueing_delay)
-    return queueing_delay, access_delay
+    return queueing_delay, access_delay, ED0_2
 
 def to_Mbps(thpt):
     return thpt * 1500 * 8 / 9

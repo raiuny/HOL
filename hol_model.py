@@ -9,12 +9,14 @@ class HOL_Model:
         p_uu, flag = calc_au_p_fsolve(n1, n2, lambda1, lambda2, tt, tf)
         if flag:
             self.alpha = calc_alpha_asym(tt, tf, n1, p_uu[0], n2, p_uu[1])
-            qd1, ad1 = calc_access_delay_u(p_uu[0], self.alpha, tt, tf, W_1, K_1, lambda1)
-            qd2, ad2 = calc_access_delay_u(p_uu[1], self.alpha, tt, tf, W_2, K_2, lambda2)
+            qd1, ad1, ads1 = calc_access_delay_u(p_uu[0], self.alpha, tt, tf, W_1, K_1, lambda1)
+            qd2, ad2, ads2= calc_access_delay_u(p_uu[1], self.alpha, tt, tf, W_2, K_2, lambda2)
             self.queuing_delay_1 = qd1
             self.queuing_delay_2 = qd2
             self.access_delay_1 = ad1
             self.access_delay_2 = ad2
+            self.access_delay_sec_1 = ads1
+            self.access_delay_sec_2 = ads2
             self.p1, self.p2 = p_uu[0], p_uu[1]
             self.state = "UU"
             self.throughput_1 = lambda1 * n1
@@ -28,12 +30,10 @@ class HOL_Model:
             p_us, p_su, us, su = calc_ps_p_fsolve(n1, lambda1, n2, lambda2, W_1, K_1, W_2, K_2, tt, tf)
             # print(p_us, p_su, us, su)
             cf_us, cf_su = 0, 0
-            if us:
-                self.alpha_us = calc_alpha_asym(tt, tf, n1, p_us[0], n2, p_us[1])
-                cf_us = calc_conf(p_us[0], p_us[1], lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, self.alpha_us, 1)
-            if su:
-                self.alpha_su = calc_alpha_asym(tt, tf, n1, p_su[0], n2, p_su[1])
-                cf_su = calc_conf(p_su[0], p_su[1], lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, self.alpha_su, 2)
+            self.alpha_us = calc_alpha_asym(tt, tf, n1, p_us[0], n2, p_us[1])
+            cf_us = calc_conf(p_us[0], p_us[1], lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, self.alpha_us, 1)
+            self.alpha_su = calc_alpha_asym(tt, tf, n1, p_su[0], n2, p_su[1])
+            cf_su = calc_conf(p_su[0], p_su[1], lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, self.alpha_su, 2)
             cf_list = [cf_us, cf_su, cf_ss]
             assert np.max(cf_list) != 0
             best_idx = np.argmax(cf_list)
@@ -43,8 +43,10 @@ class HOL_Model:
                 pi_ts_us2 = calc_mu_S(p_us[1], tt, tf, W_2, K_2, self.alpha)
                 self.throughput_1 = lambda1 * n1
                 self.throughput_2 = min(lambda2, pi_ts_us2) * n2
-                qd1, ad1 = calc_access_delay_u(p_us[0], self.alpha, tt, tf, W_1, K_1, lambda1)
-                qd2, ad2 = calc_access_delay_s(p_us[1], self.alpha, tt, tf, W_2, K_2, lambda2, pi_ts_us2)
+                qd1, ad1, ads1 = calc_access_delay_u(p_us[0], self.alpha, tt, tf, W_1, K_1, lambda1)
+                qd2, ad2, ads2 = calc_access_delay_s(p_us[1], self.alpha, tt, tf, W_2, K_2, lambda2, pi_ts_us2)
+                self.access_delay_sec_1 = ads1
+                self.access_delay_sec_2 = ads2
                 self.access_delay_1 = ad1
                 self.access_delay_2 = ad2
                 qd1 = qd1 if qd1 > 0 else 1e5
@@ -59,10 +61,11 @@ class HOL_Model:
                 pi_ts_su1 = calc_mu_S(p_su[0], tt, tf, W_1, K_1, self.alpha)
                 pi_ts_su2 = calc_mu_S(p_su[1], tt, tf, W_2, K_2, self.alpha)
                 self.throughput_1 = min(lambda1, pi_ts_su1) * n1
-                print(f"self.throughput_1:{self.throughput_1}")
                 self.throughput_2 = lambda2 * n2
-                qd1, ad1 = calc_access_delay_s(p_su[0], self.alpha, tt, tf, W_1, K_1, lambda1, pi_ts_su1)
-                qd2, ad2 = calc_access_delay_u(p_su[1], self.alpha, tt, tf, W_2, K_2, lambda2)
+                qd1, ad1, ads1 = calc_access_delay_s(p_su[0], self.alpha, tt, tf, W_1, K_1, lambda1, pi_ts_su1)
+                qd2, ad2, ads2 = calc_access_delay_u(p_su[1], self.alpha, tt, tf, W_2, K_2, lambda2)
+                self.access_delay_sec_1 = ads1
+                self.access_delay_sec_2 = ads2
                 self.access_delay_1 = ad1
                 self.access_delay_2 = ad2
                 qd1 = qd1 if qd1 > 0 else 1e5
@@ -75,9 +78,12 @@ class HOL_Model:
             elif best_idx == 2: # SS
                 self.throughput_1 = min(lambda1, pi_ts_1) * n1
                 self.throughput_2 = min(lambda2, pi_ts_2) * n2
+                print("SS: ", W_1, pi_ts_1, lambda1, pi_ts_2, lambda2)
                 self.alpha = alpha_ss
-                qd1, ad1 = calc_access_delay_s(p_as[0], self.alpha, tt, tf, W_1, K_1, lambda1, pi_ts_1)
-                qd2, ad2 = calc_access_delay_s(p_as[1], self.alpha, tt, tf, W_2, K_2, lambda2, pi_ts_2)
+                qd1, ad1, ads1 = calc_access_delay_s(p_as[0], self.alpha, tt, tf, W_1, K_1, lambda1, pi_ts_1)
+                qd2, ad2, ads2 = calc_access_delay_s(p_as[1], self.alpha, tt, tf, W_2, K_2, lambda2, pi_ts_2)
+                self.access_delay_sec_1 = ads1
+                self.access_delay_sec_2 = ads2
                 self.access_delay_1 = ad1
                 self.access_delay_2 = ad2
                 qd1 = qd1 if qd1 > 0 else 1e5
@@ -87,7 +93,7 @@ class HOL_Model:
                 self.p1 = p_as[0]
                 self.p2 = p_as[1]
                 self.state = "SS"
-                
+        print(self.state, self.p)
     @property
     def p(self):
         return self.p1, self.p2
@@ -109,6 +115,10 @@ class HOL_Model:
         return self.access_delay_1 , self.access_delay_2 
     
     @property
+    def access_delay_sec(self): #
+        return self.access_delay_sec_1 , self.access_delay_sec_2 
+    
+    @property
     def queuing_delay_ms(self):
         return self.queuing_delay_1 * 9 * 1e-3, self.queuing_delay_2 * 9 * 1e-3
     
@@ -124,6 +134,7 @@ class HOL_Model:
     def e2e_delay_ms(self):
         return (self.queuing_delay_1 + self.access_delay_1) * 9 * 1e-3, (self.queuing_delay_2 + self.access_delay_2) * 9 * 1e-3
 
+    
 if __name__ == "__main__":
     n1 = 20  
     n2 = 20  
