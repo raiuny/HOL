@@ -9,10 +9,13 @@ def calc_mu_S(p: float, tt: float, tf: float, W: int, K: int, alpha = None) -> f
     if alpha is None:
         alpha = 1 / (1 + tf - tf * p - (tt - tf) * p * np.log(p))
     ret = 2 * alpha * tt * p * (2 * p - 1) / (2 * p - 1 + W * ( p - 2 ** K * (1 - p) ** (K + 1)))
+    ak  = [(1 - p) ** i / 2 * (W * 2 ** i + 1)for i in range(0, K)]
+    ans = alpha * tt / (np.sum(ak) + (1 - p) ** K / p / 2 * (W * 2**K + 1))
+    print(ans, ret)
     return ret
 
 # 节点未饱和时的服务率 mu_U
-def calc_mu_U(p: float, tt: float, tf: float, W: int, K: int, lambda1: float, alpha: float) -> float:
+def calc_mu_U(p: float, tt: float, tf: float, W: int, K: int, lambda1: float, alpha: float = None) -> float:
     mu_S = calc_mu_S(p, tt, tf, W, K, alpha)
     ret = mu_S / (1 + (1 - tf / tt * (1 - p) / p) * (mu_S - lambda1))
     return ret
@@ -49,7 +52,7 @@ def calc_conf(p1, p2, lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, alpha, state
 #AU
 def calc_au_p_fsolve(n1: int, n2: int, lambda1: float, lambda2: float, tt: float, tf: float):
     def pf(p, n_1, n_2, lambda_1, lambda_2):
-        p_ans = [0, 0]
+        p_ans = np.zeros(2)
         alpha = calc_alpha_asym(tt, tf, n_1, p[0], n_2, p[1])
         p_ans[0] = p[0] - (1 - lambda_1 / (alpha * tt * p[0])) ** (n_1 - 1) *\
                        (1 - lambda_2  / (alpha * tt * p[1])) ** n_2
@@ -63,7 +66,21 @@ def calc_au_p_fsolve(n1: int, n2: int, lambda1: float, lambda2: float, tt: float
         uu = False
     return p_au, uu
 
-def calc_uu_p_formula(nmld: int, mld_lambda: float, nsld: int, sld_lambda: float, tt: float, tf: float):
+
+def calc_au_p_fsolve1(n1: int, lambda1: float, tt: float, tf: float):
+    def pf(p, n_1, lambda_1,):
+        p_ans = np.zeros(1)
+        alpha = calc_alpha_sym(tt, tf, n1, p)
+        p_ans = p - (1 - lambda_1 / (alpha * tt * p)) ** (n_1 - 1)      
+        return p_ans
+    p_u = fsolve(pf, [0.9], args = (n1, lambda1))
+    err = np.sqrt(np.sum(np.array(pf(p_u, n1, lambda1))**2))
+    uu = True
+    if err > 1e-5 or p_u > 1:
+        uu = False
+    return p_u, uu
+
+def calc_uu_p_formula(nmld: int,  nsld: int, mld_lambda: float, sld_lambda: float, tt: float, tf: float):
     """ 
     Args:
         nmld (int): number of MLDs
@@ -74,16 +91,19 @@ def calc_uu_p_formula(nmld: int, mld_lambda: float, nsld: int, sld_lambda: float
     Returns:
         pL, pS, uu status or not
     """
-    uu = True
-    nmld = nmld 
-    allambda = nmld * mld_lambda + nsld * sld_lambda
-    A = (allambda * tf / tt) / (1 - (1 - tf / tt) * allambda+1e-12)
-    B = -(allambda * (1 + tf) / tt) / (1 - (1 - tf / tt) * allambda+1e-12)
-    pL = B / np.real(lambertw(B*exp(-A), 0))
-    pS = B / np.real(lambertw(B*exp(-A), -1))
-    if not np.isreal(lambertw(B*exp(-A))) or pL >= 1:
-        uu = False
-    return [pL, pL], uu
+    def p(nmld: int,  nsld: int, mld_lambda: float, sld_lambda: float, tt: float, tf: float):
+        allambda = nmld * mld_lambda + nsld * sld_lambda
+        A = (allambda * tf / tt) / (1 - (1 - tf / tt) * allambda+1e-12)
+        B = -(allambda * (1 + tf )/ tt) / (1 - (1 - tf / tt) * allambda+1e-12)
+        pL = B / np.real(lambertw(B*exp(-A), 0))
+        pS = B / np.real(lambertw(B*exp(-A), -1))
+        uu = True
+        if not np.isreal(lambertw(B*exp(-A))) or pL >= 1:
+            uu = False
+        return pL, uu
+    p_uu1, uu1 = p(nmld-1, nsld, mld_lambda, sld_lambda, tt, tf)
+    p_uu2, uu2 = p(nmld, nsld-1, mld_lambda, sld_lambda, tt, tf)
+    return [p_uu1, p_uu2], uu1 and uu2
 
 def calc_ps_p_formula(n1: int, lambda1: float, n2: int, lambda2: float, W_1: int, K_1: int, W_2: int, K_2: int,  tt: float, tf: float):
     """_summary_
@@ -122,7 +142,7 @@ def calc_ps_p_fsolve_discard(n1: int, lambda1: float, n2: int, lambda2: float, W
 
 def calc_ps_p_fsolve(n1: int, lambda1: float, n2: int, lambda2: float, W_1: int, K_1: int, W_2: int, K_2: int,  tt: float, tf: float):
     def psf(p, n_u, n_s, W_s, K_s, lambda_u):
-        p_ans = [0, 0]
+        p_ans = np.zeros(2)
         alpha = calc_alpha_asym(tt, tf, n_s, p[0], n_u, p[1])
         p_ans[0] = p[0] - (1 - 2 * (2 * p[1] - 1) / (2 * p[1] - 1 + W_s * (p[1] - 2 ** K_s * (1 - p[1]) ** (K_s + 1))) ) ** n_s *\
                         (1 - lambda_u / (alpha * tt * p[0])) ** (n_u-1)
@@ -168,7 +188,7 @@ def calc_ss_p_fsolve_pa(nmld: int, nsld: int, W_mld: int, K_mld: int, W_sld: int
         p, is_correct
     """
     ss = True
-    pa1, err1 = calc_PA2(nmld, nsld, W_mld, K_mld, W_sld, K_sld)
+    pa1, err1 = calc_PA2(nmld-1, nsld, W_mld, K_mld, W_sld, K_sld)
     pa2, err2 = calc_PA2(nmld, nsld-1, W_mld, K_mld, W_sld, K_sld)
     if np.abs(err1) > 1e-5 or np.abs(err2) > 1e-5:
         ss = False

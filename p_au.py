@@ -40,7 +40,7 @@ if __name__ == "__main__":
     p1_fsolve2 = []
     p2_fsolve2 = []
     for n in n_range:
-        lam1 = 0.786 / n
+        lam1 = 0.1 / n
         p_au1, err1 = calc_au_p_fsolve1(n/2, n/2, lam1, lam1, tt, tf)
         print(f"#1 {n}", p_au1, err1)
         # p_as2, err2 = calc_au_p_fsolve_iter(n/2, n/2, lam1, lam1, tt, tf)

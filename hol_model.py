@@ -21,12 +21,17 @@ class HOL_Model:
             self.state = "UU"
             self.throughput_1 = lambda1 * n1
             self.throughput_2 = lambda2 * n2
+            mu_S = calc_mu_S(p_uu[0], tt, tf, W_1, K_1, self.alpha)
+            mu_U = calc_mu_U(p_uu[0], tt, tf, W_1, K_1, lambda1, self.alpha)
+            print("mu: ",mu_S, mu_U)
         else:
             p_as, flag_ss = calc_as_p_fsolve(n1, n2, W_1, K_1, W_2, K_2)
             alpha_ss = calc_alpha_asym(tt, tf, n1, p_as[0], n2, p_as[1])
             cf_ss = calc_conf(p_as[0], p_as[1], lambda1, lambda2, W_1, K_1, W_2, K_2, tt, tf, alpha_ss, 3)
             pi_ts_1 = calc_mu_S(p_as[0], tt, tf, W_1, K_1, alpha_ss)
             pi_ts_2 = calc_mu_S(p_as[1], tt, tf, W_2, K_2, alpha_ss)
+            mu_u = calc_mu_U(p_as[0], tt, tf, W_1, K_1, lambda1, alpha_ss)
+            print("mu_as:", pi_ts_1, pi_ts_2, mu_u)
             p_us, p_su, us, su = calc_ps_p_fsolve(n1, lambda1, n2, lambda2, W_1, K_1, W_2, K_2, tt, tf)
             # print(p_us, p_su, us, su)
             cf_us, cf_su = 0, 0
@@ -141,13 +146,13 @@ if __name__ == "__main__":
     tau_T = 32
     tau_F = 27
     
-    lam1 = 0.1 / n1 / tau_T
+    lam1 = 0.9 / n1 / tau_T
     lam2 = 0.7 / n2 / tau_T
     model = HOL_Model(
-        n1 = n1,
-        n2 = n2,
+        n1 = n1/2,
+        n2 = n1/2,
         lambda1 = tau_T * lam1,
-        lambda2 = tau_T * lam2,
+        lambda2 = tau_T * lam1,
         W_1 = 16,
         W_2 = 16,
         K_1 = 6,
